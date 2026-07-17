@@ -1,0 +1,8 @@
+extension/
+  # Directory will be created by Vite scaffold
+web/
+  # Directory will be created by Vite scaffold
+backend/
+  # FastAPI backend scaffold
+.github/workflows/
+  # CI workflow definitions
