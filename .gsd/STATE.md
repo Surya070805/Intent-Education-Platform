@@ -1,8 +1,8 @@
 # STATE.md — Bloom Project Memory
 
 > **Last updated**: 2026-07-17
-> **Current Phase**: Phase 2 — Not Started
-> **Session**: Session 1 — Project Initialization & Phase 1 Execution
+> **Current Phase**: Phase 3 — Not Started
+> **Session**: Session 1 — Phase 2 Execution
 
 ---
 
@@ -12,15 +12,16 @@
 - [x] SPEC.md finalized
 - [x] ROADMAP.md created (8 phases)
 - [x] Phase 1: Project Foundation completed
-- [ ] Phase 2: Auth + User Service + Core Schema not yet started
+- [x] Phase 2: Auth + User Service + Core Schema completed
+- [ ] Phase 3: AI Onboarding + Learning Intent Profile not yet started
 
 ---
 
 ## Active Context
 
-**Working on**: Phase 1 completed (scaffolding monorepo, web, extension, backend, CI/CD). Next up is Phase 2.
-**Blocked by**: Needs Supabase project creation by the user.
-**Next action**: Run `/plan 2` to create the Phase 2 execution plan.
+**Working on**: Phase 2 completed (Schema, RLS, Auth). Next up is Phase 3.
+**Blocked by**: Nothing.
+**Next action**: Run `/plan 3` to create the Phase 3 execution plan.
 
 ---
 
@@ -67,3 +68,4 @@
 |---|---|---|
 | 2026-07-17 | 1 | Project initialized. Open decisions resolved. SPEC + ROADMAP created. |
 | 2026-07-17 | 1 | Phase 1 execution: scaffolded backend, web, extension and CI/CD pipelines. |
+| 2026-07-17 | 1 | Phase 2 execution: Database schema, RLS policies, Backend JWT, Web/Extension Auth. |

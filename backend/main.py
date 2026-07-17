@@ -1,5 +1,16 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+import os
+import sys
+
+# Ensure the app directory is in the path
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+try:
+    from app.api import auth
+except ImportError:
+    auth = None
+
 
 app = FastAPI(
     title="Bloom API",
@@ -20,6 +31,10 @@ app.add_middleware(
 def health_check():
     """Health check endpoint to verify the service is running."""
     return {"status": "ok", "service": "bloom-backend"}
+
+# Include routers
+if auth:
+    app.include_router(auth.router)
 
 if __name__ == "__main__":
     import uvicorn
