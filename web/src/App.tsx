@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import Onboarding from './pages/Onboarding';
+import Dashboard from './pages/Dashboard';
+import Watch from './pages/Watch';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -13,23 +16,28 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-function Dashboard() {
-  const { user, signOut } = useAuth();
-  return (
-    <div style={{ padding: '20px' }}>
-      <h1>Bloom Dashboard</h1>
-      <p>Welcome, {user?.email}!</p>
-      <button onClick={signOut}>Sign Out</button>
-    </div>
-  );
-}
-
 function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route 
+          path="/onboarding" 
+          element={
+            <ProtectedRoute>
+              <Onboarding />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/watch/:id" 
+          element={
+            <ProtectedRoute>
+              <Watch />
+            </ProtectedRoute>
+          } 
+        />
         <Route 
           path="/" 
           element={

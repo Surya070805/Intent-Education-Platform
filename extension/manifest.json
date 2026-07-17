@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Bloom - Intent Education Platform",
+  "version": "1.0.0",
+  "description": "AI-powered learning companion overlay for YouTube.",
+  "permissions": ["storage"],
+  "host_permissions": [
+    "*://*.youtube.com/*",
+    "http://localhost:8000/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": ["*://*.youtube.com/watch*"],
+      "js": ["src/content/index.tsx"]
+    }
+  ]
+}

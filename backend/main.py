@@ -7,9 +7,13 @@ import sys
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 try:
-    from app.api import auth
+    from app.api import auth, onboarding, recommendations, sessions, feedback
 except ImportError:
     auth = None
+    onboarding = None
+    recommendations = None
+    sessions = None
+    feedback = None
 
 
 app = FastAPI(
@@ -35,6 +39,14 @@ def health_check():
 # Include routers
 if auth:
     app.include_router(auth.router)
+if onboarding:
+    app.include_router(onboarding.router)
+if recommendations:
+    app.include_router(recommendations.router)
+if sessions:
+    app.include_router(sessions.router)
+if feedback:
+    app.include_router(feedback.router)
 
 if __name__ == "__main__":
     import uvicorn
