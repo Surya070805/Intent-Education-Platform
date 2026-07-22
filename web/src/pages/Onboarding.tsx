@@ -4,7 +4,7 @@ import { useAuth } from '../hooks/useAuth'
 import OnboardingStep from '../components/OnboardingStep'
 
 export default function Onboarding() {
-  const { session } = useAuth()
+  const { session, refetchProfile } = useAuth()
   const navigate = useNavigate()
   
   const [step, setStep] = useState(0)
@@ -93,6 +93,9 @@ export default function Onboarding() {
 
       const data = await response.json()
       setProfile(data.intent_profile)
+      if (refetchProfile) {
+        await refetchProfile()
+      }
     } catch (err: any) {
       setError(err.message)
     } finally {

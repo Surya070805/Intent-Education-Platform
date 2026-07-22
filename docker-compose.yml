@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  gateway:
+    image: nginx:alpine
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./gateway/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - identity-service
+      - learning-service
+      - recommendation-service
+      - content-service
+
+  identity-service:
+    build: 
+      context: ./backend
+    command: uvicorn services.identity:app --host 0.0.0.0 --port 8001
+    ports:
+      - "8001:8001"
+    env_file:
+      - ./backend/.env
+
+  learning-service:
+    build: 
+      context: ./backend
+    command: uvicorn services.learning:app --host 0.0.0.0 --port 8002
+    ports:
+      - "8002:8002"
+    env_file:
+      - ./backend/.env
+
+  recommendation-service:
+    build: 
+      context: ./backend
+    command: uvicorn services.recommendation:app --host 0.0.0.0 --port 8003
+    ports:
+      - "8003:8003"
+    env_file:
+      - ./backend/.env
+
+  content-service:
+    build: 
+      context: ./backend
+    command: uvicorn services.content:app --host 0.0.0.0 --port 8004
+    ports:
+      - "8004:8004"
+    env_file:
+      - ./backend/.env
+
+  # Note: the React frontend (web) and Supabase (DB) are managed separately 
+  # or can be added here in the future. For now, Vite handles the frontend on 5173.

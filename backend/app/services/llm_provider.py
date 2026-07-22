@@ -27,11 +27,28 @@ class LLMProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def check_guard_relevance(self, career_goal: str, video_title: str, channel_name: str) -> dict:
+        """
+        Checks if a video is relevant to the user's career goal or if it is a distraction.
+        """
+        pass
+
+    @abstractmethod
+    async def chat_with_coach(self, messages: list, profile: dict, context: dict) -> str:
+        """
+        Conducts a multi-turn conversation with the AI coach, providing context.
+        """
+        pass
+
 class OpenAIProvider(LLMProvider):
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
         if self.api_key:
-            self.client = AsyncOpenAI(api_key=self.api_key)
+            self.client = AsyncOpenAI(
+                api_key=self.api_key, 
+                base_url="https://openrouter.ai/api/v1" if "or-v1" in self.api_key else None
+            )
         else:
             self.client = None
 
@@ -158,6 +175,80 @@ class OpenAIProvider(LLMProvider):
                 "topics_to_remove": [],
                 "skill_level_adjustment": "Maintain current level"
             }
+
+    async def check_guard_relevance(self, career_goal: str, video_title: str, channel_name: str) -> dict:
+        if not self.client:
+            return {
+                "is_relevant": True,
+                "reason": "Mock fallback: allowed."
+            }
+
+        prompt = f"""
+        You are an AI Guard Mode for an education platform. The user's career goal is: "{career_goal}".
+        They are currently watching a YouTube video with the title: "{video_title}" by the channel "{channel_name}".
+
+        Is this video relevant to their career goal, or is it a distraction (e.g. gaming, entertainment, unrelated content)?
+        Note: General productivity, tech news, or soft skills can be considered marginally relevant, but pure entertainment is a distraction.
+
+        Respond ONLY with a valid JSON object matching this schema:
+        {{
+            "is_relevant": boolean,
+            "reason": "A short 1-2 sentence explanation of why this is or isn't relevant to their goal."
+        }}
+        """
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You output strict JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=150
+            )
+            content = response.choices[0].message.content
+            return json.loads(content)
+        except Exception as e:
+            print(f"Error checking guard relevance: {e}")
+            return {
+                "is_relevant": True,
+                "reason": "Failed to check relevance, defaulting to allowed."
+            }
+
+    async def chat_with_coach(self, messages: list, profile: dict, context: dict) -> str:
+        if not self.client:
+            return "Mock Coach Response: It seems I am offline, but keep practicing!"
+            
+        system_prompt = f"""
+        You are an expert AI Learning Coach embedded directly into an education platform.
+        You are talking to a student. Your job is to answer their questions accurately, 
+        encourage them, and explain concepts simply according to their experience level.
+
+        User's Career Goal: {profile.get('career', {}).get('name', 'Unknown')}
+        User's Experience Level: {profile.get('experience', 'beginner')}
+        
+        Current Video Context (what they are watching right now):
+        Video Title: {context.get('title', 'Unknown')}
+        Channel: {context.get('channel_name', 'Unknown')}
+        Skills Taught: {', '.join(context.get('skills', []))}
+        
+        Keep your answers concise, encouraging, and focused on the topic.
+        """
+        
+        api_messages = [{"role": "system", "content": system_prompt}]
+        for m in messages:
+            api_messages.append({"role": m["role"], "content": m["content"]})
+            
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=api_messages,
+                max_tokens=500
+            )
+            return response.choices[0].message.content.strip()
+        except Exception as e:
+            print(f"Error chatting with coach: {e}")
+            return "Sorry, I ran into an error trying to answer your question."
 
 # Singleton instance
 llm_provider = OpenAIProvider()

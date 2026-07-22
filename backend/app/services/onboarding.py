@@ -17,6 +17,11 @@ async def process_onboarding(user_id: str, context: dict) -> dict:
 
     if supabase:
         try:
+            # Ensure user exists in public.users (MVP workaround for missing trigger)
+            user_exists = supabase.table("users").select("id").eq("id", user_id).execute()
+            if not user_exists.data:
+                supabase.table("users").insert({"id": user_id}).execute()
+
             # Fetch career ID
             career_res = supabase.table("careers").select("id").eq("slug", career_slug).execute()
             career_id = career_res.data[0]["id"] if career_res.data else None

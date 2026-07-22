@@ -9,7 +9,7 @@ def get_youtube_service():
         return None
     return build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
 
-def fetch_video_metadata(video_id: str) -> dict:
+def fetch_video_metadata(video_id: str, difficulty: str = "beginner") -> dict:
     """
     Fetches video metadata from YouTube API.
     Returns a dictionary of parsed stats.
@@ -24,6 +24,7 @@ def fetch_video_metadata(video_id: str) -> dict:
             "title": f"Mock Video {video_id}",
             "channel_name": "Mock Channel",
             "duration_seconds": 600,
+            "difficulty": difficulty,
             "view_count": 10000,
             "like_count": 500,
             "published_at": "2023-01-01T00:00:00Z",
@@ -53,6 +54,7 @@ def fetch_video_metadata(video_id: str) -> dict:
             "title": snippet.get("title"),
             "channel_name": snippet.get("channelTitle"),
             "duration_seconds": int(duration_delta.total_seconds()),
+            "difficulty": difficulty,
             "view_count": int(statistics.get("viewCount", 0)),
             "like_count": int(statistics.get("likeCount", 0)),
             "published_at": snippet.get("publishedAt"),

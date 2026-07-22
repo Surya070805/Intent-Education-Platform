@@ -13,5 +13,8 @@
       "matches": ["*://*.youtube.com/watch*"],
       "js": ["src/content/index.tsx"]
     }
-  ]
+  ],
+  "action": {
+    "default_popup": "index.html"
+  }
 }

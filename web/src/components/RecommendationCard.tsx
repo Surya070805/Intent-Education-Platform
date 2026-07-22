@@ -7,6 +7,8 @@ export interface Recommendation {
   explanation: string
   status: string
   resource: {
+    id: string
+    youtube_id: string
     title: string
     channel_name: string
     duration_seconds: number
@@ -91,7 +93,7 @@ export default function RecommendationCard({ recommendation, onUpdateStatus }: P
             {status === 'saved' ? 'Saved' : 'Save'}
           </button>
           <button 
-            onClick={() => navigate(`/watch/${resource.youtube_id}`)}
+            onClick={() => navigate(`/watch/${id}`, { state: { youtubeId: resource.youtube_id } })}
             style={{ padding: '6px 12px', cursor: 'pointer', background: '#28a745', color: 'white', border: 'none', borderRadius: '4px' }}
           >
             Watch Now

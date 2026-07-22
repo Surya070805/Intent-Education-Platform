@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS public.learning_profiles (
   learning_style  TEXT,              -- video / reading / project-based
   daily_minutes   INT,
   language        TEXT DEFAULT 'en',
+  guard_mode_enabled BOOLEAN DEFAULT true,
   onboarded_at    TIMESTAMPTZ,
   updated_at      TIMESTAMPTZ DEFAULT now(),
   UNIQUE(user_id)

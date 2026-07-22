@@ -61,25 +61,88 @@ async def update_status(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/browse")
+async def browse_resources(current_user: User = Depends(get_current_user)):
+    """
+    Returns all resources grouped by difficulty level for the Netflix-style browse UI.
+    """
+    if not supabase:
+        return {"sections": []}
+
+    try:
+        resources_res = supabase.table("resources").select("*").execute()
+        all_resources = resources_res.data or []
+
+        # Group by difficulty
+        levels = {
+            "beginner": {"level": "beginner", "label": "🌱 Beginner — Start Here", "resources": []},
+            "intermediate": {"level": "intermediate", "label": "🚀 Intermediate — Level Up", "resources": []},
+            "advanced": {"level": "advanced", "label": "🔥 Advanced — Go Deep", "resources": []},
+        }
+
+        for res in all_resources:
+            difficulty = (res.get("difficulty") or "beginner").lower()
+            if difficulty in levels:
+                levels[difficulty]["resources"].append(res)
+            else:
+                levels["beginner"]["resources"].append(res)
+
+        # Only return sections that have resources
+        sections = [v for v in levels.values() if v["resources"]]
+        return {"sections": sections}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.post("/seed")
 async def seed_resources():
     """
-    Temporary endpoint to seed database with mock/real YouTube resources.
+    Seed database with YouTube resources tagged by difficulty level.
     """
     if not supabase:
         return {"status": "skipped", "message": "Supabase not connected"}
-        
-    seed_videos = ["p63R4P7KjQk", "xk4_1vDrzzo", "nLRL_NcnK-4"] # Random Python/React tutorials
+
+    # (video_id, difficulty)
+    seed_videos = [
+        # Beginner
+        ("m_u6P5k0vP0", "beginner", ["html-css"]),     # HTML & CSS Full Course
+        ("ok-plXXHlWw", "beginner", ["html-css"]),     # UI/UX Design Course
+        ("kqtD5dpn9C8", "beginner", ["python-fundamentals"]),     # Python for Beginners
+        ("PkZNo7MFNFg", "beginner", ["javascript-fundamentals"]),     # Learn JavaScript
+        ("pTFZrS8GHKA", "beginner", ["javascript-fundamentals"]),     # Java Full Course for Beginners
+        ("zJSY8tbf_ys", "beginner", ["html-css"]),     # HTML & CSS Crash Course
+        ("f4s1h2YETNY", "beginner", ["javascript-fundamentals"]),     # Javascript Crash Course
+        # Intermediate
+        ("xk4_1vDrzzo", "intermediate", ["react"]), # React Tutorial
+        ("bMknfKXIFA8", "intermediate", ["react"]), # React Course
+        ("nLRL_NcnK-4", "intermediate", ["machine-learning"]), # Python + ML
+        ("t8pPdKYpowI", "intermediate", ["python-fundamentals"]), # Data Structures & Algorithms
+        ("Z1RJmh_OqeA", "intermediate", ["javascript-fundamentals"]), # Flutter Course
+        ("Oe421EPjeBE", "intermediate", ["nodejs-express"]), # Node.js & Express Course
+        ("c18aMsi_0gk", "intermediate", ["typescript"]), # TypeScript Full Course
+        # Advanced
+        ("tPYj3fFJGjk", "advanced", ["nextjs-fullstack"]),     # Next.js 14 Full Course
+        ("CvCiNeLnZ00", "advanced", ["devops-deployment"]),     # Go (Golang) Tutorial
+        ("VyHDALc0kEM", "advanced", ["devops-deployment"]),     # Kubernetes Course
+        ("X48VuDVv0do", "advanced", ["devops-deployment"]),     # Docker Tutorial
+        ("aircAruvnKk", "advanced", ["system-design"]),     # System Design
+        ("HXV3zeQKqGY", "advanced", ["python-fundamentals", "nodejs-express"]),     # Python Backend (100 Concepts)
+    ]
     inserted = []
-    
-    for vid in seed_videos:
-        meta = fetch_video_metadata(vid)
+
+    for vid_id, difficulty, skills in seed_videos:
+        meta = fetch_video_metadata(vid_id, difficulty=difficulty)
         if meta:
             # Check if exists
-            exists = supabase.table("resources").select("id").eq("youtube_id", vid).execute()
+            exists = supabase.table("resources").select("id").eq("youtube_id", vid_id).execute()
             if not exists.data:
                 meta["is_curated"] = True
+                meta["skills"] = skills
                 res = supabase.table("resources").insert(meta).execute()
-                inserted.append(res.data[0])
-                
-    return {"status": "success", "inserted": inserted}
+                if res.data:
+                    inserted.append(res.data[0])
+            else:
+                # Update existing with skills
+                supabase.table("resources").update({"skills": skills}).eq("youtube_id", vid_id).execute()
+
+    return {"status": "success", "inserted_count": len(inserted)}
+
