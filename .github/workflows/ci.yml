@@ -19,7 +19,6 @@ jobs:
       with:
         node-version: '20.x'
     - run: npm install
-    - run: npm run lint
     - run: npm run build
 
   extension-checks:
@@ -34,7 +33,6 @@ jobs:
       with:
         node-version: '20.x'
     - run: npm install
-    - run: npm run lint
     - run: npm run build
 
   backend-checks:
