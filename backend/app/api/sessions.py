@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
 from app.core.security import get_current_user, User, supabase
+from app.services.mastery_engine import update_mastery
 
 router = APIRouter(prefix="/api/v1/sessions", tags=["Sessions"])
 
@@ -11,6 +12,7 @@ class StartSessionRequest(BaseModel):
 
 class EndSessionRequest(BaseModel):
     duration_seconds: int
+    rating: Optional[int] = None  # 1-5 star rating from user
 
 @router.post("/start")
 async def start_session(
@@ -32,7 +34,8 @@ async def start_session(
             "user_id": current_user.id,
             "resource_id": resource_id,
             "recommendation_id": request.recommendation_id,
-            "start_time": datetime.utcnow().isoformat(),
+            "started_at": datetime.utcnow().isoformat(),
+            "status": "active",
         }
         res = supabase.table("learning_sessions").insert(session_data).execute()
         return res.data[0]
@@ -46,21 +49,54 @@ async def end_session(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Updates the end_time and calculated duration.
+    Marks a session as completed, logs duration, and triggers the
+    Mastery Engine to update the learner's skill mastery levels.
     """
     if not supabase:
         return {"status": "mock_success", "duration_logged": request.duration_seconds}
 
     try:
+        # 1. Fetch the session to get resource_id
+        session_res = supabase.table("learning_sessions") \
+            .select("resource_id") \
+            .eq("id", session_id) \
+            .eq("user_id", current_user.id) \
+            .execute()
+
+        if not session_res.data:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        resource_id = session_res.data[0].get("resource_id")
+
+        # 2. Mark session as completed
         res = supabase.table("learning_sessions") \
             .update({
-                "end_time": datetime.utcnow().isoformat(),
-                "duration_seconds": request.duration_seconds
+                "completed_at": datetime.utcnow().isoformat(),
+                "duration_seconds": request.duration_seconds,
+                "status": "completed",
             }) \
             .eq("id", session_id) \
             .eq("user_id", current_user.id) \
             .execute()
-        return res.data[0] if res.data else None
+
+        session = res.data[0] if res.data else {}
+
+        # 3. Fire the Mastery Engine — update learner's skill knowledge
+        mastery_updates = []
+        if resource_id:
+            mastery_updates = await update_mastery(
+                user_id=current_user.id,
+                resource_id=resource_id,
+                duration_watched_seconds=request.duration_seconds,
+                rating=request.rating,
+            )
+
+        return {
+            **session,
+            "mastery_updates": mastery_updates,
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -108,4 +144,3 @@ async def get_revision_sessions(current_user: User = Depends(get_current_user)):
         return res.data or []
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-

@@ -41,6 +41,22 @@ class LLMProvider(ABC):
         """
         pass
 
+    @abstractmethod
+    async def tag_resource_skills(self, title: str, description: str, channel: str, available_skills: list[dict]) -> list[str]:
+        """
+        Given a resource's metadata and a list of available skill slugs,
+        returns the slugs that this resource teaches.
+        """
+        pass
+
+    @abstractmethod
+    async def assess_skill_from_session(self, session_notes: str, rating: int, skill_name: str) -> float:
+        """
+        Given session notes and a rating, returns a confidence score (0.0-1.0)
+        representing how much the learner understood the skill.
+        """
+        pass
+
 class OpenAIProvider(LLMProvider):
     def __init__(self):
         self.api_key = os.getenv("OPENAI_API_KEY")
@@ -249,6 +265,75 @@ class OpenAIProvider(LLMProvider):
         except Exception as e:
             print(f"Error chatting with coach: {e}")
             return "Sorry, I ran into an error trying to answer your question."
+
+    async def tag_resource_skills(self, title: str, description: str, channel: str, available_skills: list[dict]) -> list[str]:
+        """Uses LLM to identify which skills a resource teaches."""
+        if not self.client or not available_skills:
+            return []
+
+        skill_list = ", ".join([f"{s['slug']} ({s['name']})" for s in available_skills])
+        prompt = f"""
+        You are a curriculum expert. Analyze the following YouTube video and identify which skills it teaches.
+
+        Video Title: {title}
+        Channel: {channel}
+        Description: {description[:500] if description else 'N/A'}
+
+        Available skill slugs:
+        {skill_list}
+
+        Return ONLY a JSON object with a single key "skills" containing a list of slug strings that this video teaches.
+        Only include skills that are clearly and directly taught. Maximum 3 skills.
+        Example: {{"skills": ["python-fundamentals", "data-wrangling-pandas"]}}
+        """
+
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You output strict JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=100
+            )
+            content = json.loads(response.choices[0].message.content)
+            return content.get("skills", [])
+        except Exception as e:
+            print(f"Error tagging resource skills: {e}")
+            return []
+
+    async def assess_skill_from_session(self, session_notes: str, rating: int, skill_name: str) -> float:
+        """Returns a confidence score (0.0-1.0) based on session quality."""
+        if not self.client:
+            # Fallback: use rating as a proxy
+            return min(rating / 5.0, 1.0)
+
+        prompt = f"""
+        A learner just finished studying "{skill_name}" and gave themselves a {rating}/5 rating.
+        Their notes: "{session_notes}"
+
+        Based on the depth and clarity of their notes and the self-rating,
+        estimate their comprehension confidence as a number between 0.0 and 1.0.
+        
+        Return ONLY a JSON object: {{"confidence": 0.7}}
+        """
+
+        try:
+            response = await self.client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": "You output strict JSON."},
+                    {"role": "user", "content": prompt}
+                ],
+                response_format={"type": "json_object"},
+                max_tokens=50
+            )
+            content = json.loads(response.choices[0].message.content)
+            return float(content.get("confidence", rating / 5.0))
+        except Exception as e:
+            print(f"Error assessing skill from session: {e}")
+            return rating / 5.0
 
 # Singleton instance
 llm_provider = OpenAIProvider()

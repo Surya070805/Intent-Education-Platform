@@ -3,7 +3,8 @@ from pydantic import BaseModel
 from typing import List, Optional
 from app.core.security import get_current_user, User, supabase
 from app.services.recommender import generate_recommendations
-from app.services.youtube import fetch_video_metadata
+from app.services.youtube import fetch_video_metadata, tag_and_save_resource
+from app.services.skill_gap_analyzer import compute_skill_gaps
 
 router = APIRouter(prefix="/api/v1/recommendations", tags=["Recommendations"])
 
@@ -37,6 +38,17 @@ async def trigger_generation(current_user: User = Depends(get_current_user)):
     """
     recs = await generate_recommendations(current_user.id)
     return recs
+
+
+@router.get("/skill-gaps")
+async def get_skill_gaps(current_user: User = Depends(get_current_user)):
+    """
+    Returns the learner's current skill gaps — what they know vs. what their
+    career target requires. Sorted by priority (largest gap, unlocked first).
+    This is the core output of Bloom's Skill Gap Analyzer.
+    """
+    gaps = await compute_skill_gaps(current_user.id)
+    return {"skill_gaps": gaps}
 
 @router.patch("/{rec_id}")
 async def update_status(
