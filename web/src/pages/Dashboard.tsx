@@ -1,8 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import VideoCard, { Resource } from '../components/VideoCard'
-import ContentRow from '../components/ContentRow'
 import Sidebar from '../components/Sidebar'
 import RightSidebar from '../components/RightSidebar'
 import ContinueLearningCard from '../components/ContinueLearningCard'
@@ -33,23 +32,17 @@ export default function Dashboard() {
   const navigate = useNavigate()
   
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
-  const [sections, setSections] = useState<BrowseSection[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
-  const [revisions, setRevisions] = useState<ActiveSession[]>([])
   const [streak, setStreak] = useState(0)
   const [longestStreak, setLongestStreak] = useState(0)
   const [dailyGoalCompleted, setDailyGoalCompleted] = useState(0)
   const [careerGoal, setCareerGoal] = useState<string>('')
   const [skillProgress, setSkillProgress] = useState<any[]>([])
   const [activityHeatmap, setActivityHeatmap] = useState<Record<string, number>>({})
-  const [notifications, setNotifications] = useState<string[]>([])
+  const [roadmapData, setRoadmapData] = useState<{ completion_percent: number; completed_skills: number; total_skills: number; career: any } | null>(null)
   
   const [loading, setLoading] = useState(true)
-  const [generating, setGenerating] = useState(false)
-  const [seeding, setSeeding] = useState(false)
-  const [error, setError] = useState('')
   const upNextScrollRef = useRef<HTMLDivElement>(null)
-  const continueScrollRef = useRef<HTMLDivElement>(null)
 
   const fetchDashboardData = async () => {
     if (!session) return
@@ -57,23 +50,19 @@ export default function Dashboard() {
     try {
       const headers = { 'Authorization': `Bearer ${session.access_token}` }
       
-      const [recsRes, browseRes, sessionsRes, progressRes, revisionsRes, profileRes] = await Promise.all([
+      const [recsRes, browseRes, sessionsRes, progressRes, revisionsRes, profileRes, roadmapRes] = await Promise.all([
         fetch('/api/v1/recommendations/', { headers }),
         fetch('/api/v1/recommendations/browse', { headers }),
         fetch('/api/v1/sessions/active', { headers }),
         fetch('/api/v1/progress/', { headers }),
         fetch('/api/v1/sessions/revisions', { headers }),
-        fetch('/api/v1/profile/', { headers })
+        fetch('/api/v1/profile/', { headers }),
+        fetch('/api/v1/roadmap/', { headers })
       ])
 
       if (recsRes.ok) {
         const data = await recsRes.json()
         setRecommendations(data.filter((r: Recommendation) => r.status === 'pending' || r.status === 'saved'))
-      }
-      
-      if (browseRes.ok) {
-        const data = await browseRes.json()
-        setSections(data.sections || [])
       }
 
       if (sessionsRes.ok) {
@@ -86,19 +75,11 @@ export default function Dashboard() {
         setStreak(data.stats?.current_streak || 0)
         setLongestStreak(data.stats?.longest_streak || 0)
         
-        // Find today's completed sessions from heatmap if available
         const todayStr = new Date().toISOString().split('T')[0]
         const completedToday = data.activity_heatmap?.[todayStr] || 0
         setDailyGoalCompleted(completedToday)
         setActivityHeatmap(data.activity_heatmap || {})
-        
         setSkillProgress(data.skill_progress || [])
-      }
-
-      let revs: any[] = []
-      if (revisionsRes.ok) {
-        revs = await revisionsRes.json()
-        setRevisions(revs || [])
       }
 
       if (profileRes.ok) {
@@ -106,18 +87,10 @@ export default function Dashboard() {
         setCareerGoal(data.learning_profile?.career?.name || '')
       }
 
-      // Derive notifications
-      const notifs = []
-      if (revs.length > 0) notifs.push(`You have ${revs.length} items to revise today.`)
-      
-      // We need recs to build notifs, wait, we just set them, we can get length from recsRes.
-      // But we parse it here:
-      if (recsRes.ok) {
-         // parsed above, but let's just use the state if we can. Actually we can't reliably use state synchronously.
-         // Just a simple derived state:
+      if (roadmapRes.ok) {
+        const data = await roadmapRes.json()
+        setRoadmapData(data)
       }
-      setNotifications(notifs)
-
     } catch (e: any) {
       console.error('Error fetching dashboard data:', e)
     } finally {
@@ -128,38 +101,6 @@ export default function Dashboard() {
   useEffect(() => {
     fetchDashboardData()
   }, [session])
-
-  const generateRecommendations = async () => {
-    setGenerating(true)
-    setError('')
-    try {
-      const res = await fetch('/api/v1/recommendations/generate', {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${session?.access_token}` }
-      })
-      if (res.ok) {
-        await fetchDashboardData()
-      } else {
-        setError('Failed to generate recommendations.')
-      }
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  const handleSeed = async () => {
-    setSeeding(true)
-    try {
-      await fetch('/api/v1/recommendations/seed', { method: 'POST' })
-      await fetchDashboardData()
-    } catch (e) {
-      console.error(e)
-    } finally {
-      setSeeding(false)
-    }
-  }
 
   const scrollRow = (ref: React.RefObject<HTMLDivElement>, direction: 'left' | 'right') => {
     const el = ref.current
@@ -310,6 +251,7 @@ export default function Dashboard() {
         careerGoal={careerGoal} 
         skillProgress={skillProgress}
         activityHeatmap={activityHeatmap}
+        roadmapData={roadmapData}
       />
 
     </div>

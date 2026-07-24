@@ -24,6 +24,7 @@ export default function Watch() {
   const [currentNote, setCurrentNote] = useState('')
   const [showFeedback, setShowFeedback] = useState(false)
   const [rating, setRating] = useState<number | null>(null)
+  const [masteryUpdates, setMasteryUpdates] = useState<any[]>([])
   const sessionStartTime = useRef<number>(Date.now())
 
   // Tabs: 'notes' | 'coach'
@@ -103,7 +104,6 @@ export default function Watch() {
     return () => {
       if (sessionId && session) {
         const durationSeconds = Math.floor((Date.now() - sessionStartTime.current) / 1000)
-        // Use keepalive to ensure request goes through on unmount/navigate
         fetch(`/api/v1/sessions/${sessionId}/end`, {
           method: 'POST',
           headers: {
@@ -142,26 +142,38 @@ export default function Watch() {
   }
 
   const handleSubmitFeedback = async () => {
-    if (!rating) return
-    
-    // Submit feedback
+    if (!rating || !sessionId) return
+
     try {
+      const durationSeconds = Math.floor((Date.now() - sessionStartTime.current) / 1000)
+
+      // End the session with the rating — this triggers the Mastery Engine
+      const endRes = await fetch(`/api/v1/sessions/${sessionId}/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session?.access_token}`
+        },
+        body: JSON.stringify({ duration_seconds: durationSeconds, rating })
+      })
+      
+      if (endRes.ok) {
+        const endData = await endRes.json()
+        setMasteryUpdates(endData.mastery_updates || [])
+      }
+
+      // Also submit qualitative feedback
       await fetch(`/api/v1/feedback/session/${sessionId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session?.access_token}`
         },
-        body: JSON.stringify({
-          rating: rating,
-          notes: savedNotes
-        })
-      })
+        body: JSON.stringify({ rating, notes: savedNotes })
+      }).catch(() => {}) // Non-critical
+
     } catch (e) {
       console.error(e)
-    } finally {
-      // Force end session logic to run and go to dashboard
-      navigate('/')
     }
   }
 
@@ -201,33 +213,89 @@ export default function Watch() {
   }
 
   if (showFeedback) {
-    return (
-      <div style={{ padding: '40px', maxWidth: '600px', margin: '100px auto', background: '#f8f9fa', borderRadius: '12px', textAlign: 'center', fontFamily: 'sans-serif', border: '1px solid #ccc' }}>
-        <h2>Session Complete! 🎉</h2>
-        <p>How well did you understand the material?</p>
-        <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', margin: '20px 0' }}>
-          {[1, 2, 3, 4, 5].map(num => (
-            <button 
-              key={num}
-              onClick={() => setRating(num)}
-              style={{
-                width: '40px', height: '40px', borderRadius: '50%', border: 'none',
-                background: rating === num ? '#0056b3' : '#e5e5e5',
-                color: rating === num ? 'white' : 'black',
-                cursor: 'pointer', fontSize: '1.2em'
-              }}
+    // If we have mastery updates, show them; else show rating form
+    if (masteryUpdates.length > 0) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+          <div style={{ maxWidth: '500px', width: '90%', background: 'var(--bg-card)', borderRadius: '24px', padding: '48px 40px', border: '1px solid var(--border-subtle)', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            <div style={{ fontSize: '3em', marginBottom: '16px' }}>🎉</div>
+            <h2 style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '1.8em' }}>Session Complete!</h2>
+            <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>You leveled up these skills:</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '32px', textAlign: 'left' }}>
+              {masteryUpdates.map((update, i) => (
+                <div key={i} style={{ background: 'var(--bg-secondary)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: 600, textTransform: 'capitalize' }}>
+                      {update.skill_slug?.replace(/-/g, ' ')}
+                    </span>
+                    <span style={{ color: 'var(--accent-green)', fontWeight: 700 }}>
+                      +{Math.round(update.delta * 100)}%
+                    </span>
+                  </div>
+                  <div style={{ background: 'var(--border-subtle)', borderRadius: '8px', height: '8px', overflow: 'hidden' }}>
+                    <div style={{ 
+                      height: '100%', 
+                      width: `${Math.round(update.new_mastery * 100)}%`, 
+                      background: update.mastered ? 'var(--accent-green)' : 'var(--accent-purple)',
+                      borderRadius: '8px',
+                      transition: 'width 1s ease'
+                    }} />
+                  </div>
+                  <div style={{ fontSize: '0.75em', color: 'var(--text-muted)', marginTop: '6px', textAlign: 'right' }}>
+                    {Math.round(update.new_mastery * 100)}% mastery {update.mastered ? '✅ Mastered!' : ''}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => navigate('/dashboard')}
+              style={{ width: '100%', padding: '14px', background: 'var(--accent-purple)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '1em', fontWeight: 700, cursor: 'pointer' }}
             >
-              {num}
+              Back to Dashboard →
             </button>
-          ))}
+          </div>
         </div>
-        <button 
-          onClick={handleSubmitFeedback}
-          disabled={!rating}
-          style={{ padding: '12px 24px', background: rating ? '#28a745' : '#ccc', color: 'white', border: 'none', borderRadius: '8px', cursor: rating ? 'pointer' : 'not-allowed', fontWeight: 'bold' }}
-        >
-          Submit & Return to Dashboard
-        </button>
+      )
+    }
+
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-primary)' }}>
+        <div style={{ maxWidth: '480px', width: '90%', background: 'var(--bg-card)', borderRadius: '24px', padding: '48px 40px', border: '1px solid var(--border-subtle)', textAlign: 'center', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+          <div style={{ fontSize: '3em', marginBottom: '16px' }}>🧠</div>
+          <h2 style={{ color: 'var(--text-primary)', marginBottom: '8px', fontSize: '1.8em' }}>How well did you understand it?</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Your answer helps Bloom update your skill mastery.</p>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '12px', marginBottom: '32px' }}>
+            {[
+              { num: 1, label: 'Lost', emoji: '😕' },
+              { num: 2, label: 'Shaky', emoji: '😐' },
+              { num: 3, label: 'Okay', emoji: '🙂' },
+              { num: 4, label: 'Good', emoji: '😊' },
+              { num: 5, label: 'Got it!', emoji: '🚀' }
+            ].map(({ num, label, emoji }) => (
+              <button
+                key={num}
+                onClick={() => setRating(num)}
+                style={{
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px',
+                  padding: '12px 8px', borderRadius: '12px', border: '2px solid',
+                  borderColor: rating === num ? 'var(--accent-purple)' : 'var(--border-subtle)',
+                  background: rating === num ? 'rgba(168,85,247,0.15)' : 'var(--bg-secondary)',
+                  cursor: 'pointer', minWidth: '60px', transition: 'all 0.15s'
+                }}
+              >
+                <span style={{ fontSize: '1.5em' }}>{emoji}</span>
+                <span style={{ fontSize: '0.7em', color: rating === num ? 'var(--accent-purple)' : 'var(--text-muted)', fontWeight: rating === num ? 700 : 400 }}>{label}</span>
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={handleSubmitFeedback}
+            disabled={!rating}
+            style={{ width: '100%', padding: '14px', background: rating ? 'var(--accent-purple)' : 'var(--border-subtle)', color: rating ? 'white' : 'var(--text-muted)', border: 'none', borderRadius: '12px', fontSize: '1em', fontWeight: 700, cursor: rating ? 'pointer' : 'not-allowed', transition: 'all 0.2s' }}
+          >
+            Submit & See Your Progress
+          </button>
+        </div>
       </div>
     )
   }

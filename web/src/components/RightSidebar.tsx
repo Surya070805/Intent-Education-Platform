@@ -6,9 +6,16 @@ interface RightSidebarProps {
   careerGoal: string
   skillProgress: any[]
   activityHeatmap?: Record<string, number>
+  roadmapData?: {
+    completion_percent: number
+    completed_skills: number
+    total_skills: number
+    career: any
+    skills?: any[]
+  } | null
 }
 
-export default function RightSidebar({ streak, longestStreak, careerGoal, skillProgress, activityHeatmap }: RightSidebarProps) {
+export default function RightSidebar({ streak, longestStreak, careerGoal, skillProgress, activityHeatmap, roadmapData }: RightSidebarProps) {
   
   // Calculate skills stats
   const totalSkills = skillProgress.length
@@ -32,8 +39,7 @@ export default function RightSidebar({ streak, longestStreak, careerGoal, skillP
     currentWeekDates.push(d.toISOString().split('T')[0])
   }
 
-  // Render dummy roadmap items if none exist
-  const roadmapItems: any[] = []
+
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -84,24 +90,29 @@ export default function RightSidebar({ streak, longestStreak, careerGoal, skillP
         <h4 className="widget-title" style={{ marginBottom: '8px' }}>Your Roadmap</h4>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85em', color: 'var(--text-primary)', marginBottom: '8px' }}>
           <span>{careerGoal || 'No goal set'}</span>
-          <span>0%</span>
+          <span>{roadmapData?.completion_percent ?? 0}%</span>
         </div>
         <div className="progress-bar-bg" style={{ marginBottom: '20px' }}>
-          <div className="progress-bar-fill" style={{ width: '0%', background: 'var(--accent-purple)' }} />
+          <div className="progress-bar-fill" style={{ width: `${roadmapData?.completion_percent ?? 0}%`, background: 'var(--accent-purple)' }} />
         </div>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
-          {roadmapItems.length === 0 ? (
-            <div style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>No items in your roadmap yet.</div>
-          ) : roadmapItems.map((item, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8em', color: item.status === 'locked' ? 'var(--text-muted)' : 'var(--text-secondary)' }}>
-              <span>{item.name}</span>
-              {getStatusIcon(item.status)}
-            </div>
-          ))}
+          {roadmapData?.skills && roadmapData.skills.length > 0 ? (
+            roadmapData.skills
+              .filter((s: any) => s.status !== 'locked')
+              .slice(0, 4)
+              .map((item: any) => (
+                <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8em', color: 'var(--text-secondary)' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{item.name}</span>
+                  {getStatusIcon(item.status === 'completed' ? 'mastered' : item.status === 'in_progress' ? 'active' : 'locked')}
+                </div>
+              ))
+          ) : (
+            <div style={{ fontSize: '0.85em', color: 'var(--text-muted)' }}>Complete onboarding to see your roadmap.</div>
+          )}
         </div>
         
-        <button className="btn btn-ghost" style={{ width: '100%' }}>View Full Roadmap</button>
+        <button className="btn btn-ghost" style={{ width: '100%' }} onClick={() => window.location.href = '/roadmap'}>View Full Roadmap</button>
       </div>
 
       {/* Skills Progress */}
