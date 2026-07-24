@@ -20,9 +20,11 @@ interface VideoCardProps {
   recommendationId?: string // If from a personal recommendation
   explanation?: string      // If AI generated an explanation
   onStatusUpdate?: (id: string, status: string) => void // Callback when saved/dismissed
+  browseMode?: boolean      // True for guest users browsing without login
+  onBrowseClick?: () => void // Custom click handler for browse mode
 }
 
-export default function VideoCard({ resource, matchScore, recommendationId, explanation, onStatusUpdate }: VideoCardProps) {
+export default function VideoCard({ resource, matchScore, recommendationId, explanation, onStatusUpdate, browseMode, onBrowseClick }: VideoCardProps) {
   const navigate = useNavigate()
 
   const formatDuration = (seconds: number) => {
@@ -34,7 +36,9 @@ export default function VideoCard({ resource, matchScore, recommendationId, expl
   }
 
   const handleClick = () => {
-    if (recommendationId) {
+    if (onBrowseClick) {
+      onBrowseClick()
+    } else if (recommendationId) {
       // Personal recommendation — track via recommendation flow
       navigate(`/watch/${recommendationId}`, { state: { youtubeId: resource.youtube_id } })
     } else {

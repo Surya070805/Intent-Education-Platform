@@ -74,9 +74,10 @@ async def update_status(
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/browse")
-async def browse_resources(current_user: User = Depends(get_current_user)):
+async def browse_resources():
     """
     Returns all resources grouped by difficulty level for the Netflix-style browse UI.
+    This endpoint is PUBLIC — no authentication required (guests can browse).
     """
     if not supabase:
         return {"sections": []}

@@ -11,15 +11,11 @@ export default function Sidebar({ userName, dailyGoalCompleted = 0, dailyGoalTar
   const location = useLocation()
   
   const navItems = [
-    { label: 'Dashboard', path: '/dashboard', icon: '🏠' },
-    { label: 'Learn', path: '/learn', icon: '📺' },
-    { label: 'Roadmap', path: '/roadmap', icon: '🛣️' },
+    { label: 'Home', path: '/', icon: '🏠' },
+    { label: 'Roadmap', path: '/roadmap', icon: '🗺️' },
     { label: 'Search', path: '/search', icon: '🔍' },
     { label: 'Progress', path: '/progress', icon: '📊' },
-    { label: 'AI Mentor', path: '/chat', icon: '🤖', badge: 'Beta' },
-    { label: 'Bookmarks', path: '/bookmarks', icon: '🔖' },
-    { label: 'Notes', path: '/notes', icon: '📝' },
-    { label: 'Achievements', path: '/achievements', icon: '🏆' },
+    { label: 'Profile', path: '/profile', icon: '👤' },
   ]
 
   return (
@@ -36,7 +32,7 @@ export default function Sidebar({ userName, dailyGoalCompleted = 0, dailyGoalTar
 
       <div className="nav-menu">
         {navItems.map(item => {
-          const isActive = location.pathname === item.path || (item.path === '/dashboard' && location.pathname === '/')
+          const isActive = location.pathname === item.path
           return (
             <Link 
               key={item.label} 

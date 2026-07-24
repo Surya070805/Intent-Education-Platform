@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import VideoCard, { Resource } from '../components/VideoCard'
 import Sidebar from '../components/Sidebar'
@@ -30,6 +30,7 @@ interface ActiveSession {
 export default function Dashboard() {
   const { user, session, signOut } = useAuth()
   const navigate = useNavigate()
+  const [searchQuery, setSearchQuery] = useState('')
   
   const [recommendations, setRecommendations] = useState<Recommendation[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
@@ -150,17 +151,29 @@ export default function Dashboard() {
         
         {/* Top Header */}
         <header className="main-header">
-          <div className="search-bar">
+          <form
+            onSubmit={(e) => { e.preventDefault(); if (searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`) }}
+            className="search-bar"
+            style={{ cursor: 'text' }}
+          >
             <span style={{ color: 'var(--text-muted)', marginRight: '8px' }}>🔍</span>
-            <input type="text" placeholder="Search for skills, topics, careers..." />
-            <span className="search-shortcut">⌘ K</span>
-          </div>
+            <input
+              type="text"
+              placeholder="Search for skills, topics, careers..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`) }}
+            />
+            <span className="search-shortcut" style={{ cursor: 'pointer' }} onClick={() => { if (searchQuery.trim()) navigate(`/search?q=${encodeURIComponent(searchQuery.trim())}`) }}>→</span>
+          </form>
           <div className="header-icons">
-            <span style={{ position: 'relative', cursor: 'pointer' }}>
-              🔔
+            <Link to="/progress" style={{ textDecoration: 'none', position: 'relative', cursor: 'pointer' }}>
+              <span>🔔</span>
               <span style={{ position: 'absolute', top: 0, right: 0, width: '6px', height: '6px', background: 'var(--accent-red)', borderRadius: '50%' }} />
-            </span>
-            <span style={{ cursor: 'pointer' }}>⚙️</span>
+            </Link>
+            <Link to="/profile" style={{ textDecoration: 'none' }}>
+              <span style={{ cursor: 'pointer' }}>⚙️</span>
+            </Link>
           </div>
         </header>
 
@@ -169,10 +182,10 @@ export default function Dashboard() {
           {/* Greeting */}
           <div className="greeting-section">
             <div>
-              <h2>Good morning, {userName}! 👋</h2>
+              <h2>Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 17 ? 'afternoon' : 'evening'}, {userName}! 👋</h2>
               <p>Ready to continue your learning journey?</p>
             </div>
-            <button className="btn btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--accent-purple)', borderColor: 'rgba(168, 85, 247, 0.2)' }}>
+            <button className="btn btn-ghost" onClick={() => navigate('/search')} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(168, 85, 247, 0.1)', color: 'var(--accent-purple)', borderColor: 'rgba(168, 85, 247, 0.2)' }}>
               <span>✨</span> Ask AI Mentor
             </button>
           </div>
@@ -184,7 +197,21 @@ export default function Dashboard() {
             <div className="up-next-section">
               <div className="row-header">
                 <h3 className="row-title">Recommended for you</h3>
-                <span style={{ color: 'var(--accent-blue)', fontSize: '0.85em', cursor: 'pointer' }}>See all</span>
+                <button
+                  onClick={async () => {
+                    const res = await fetch('/api/v1/recommendations/generate', {
+                      method: 'POST',
+                      headers: { 'Authorization': `Bearer ${session?.access_token}` }
+                    })
+                    if (res.ok) {
+                      const newRecs = await res.json()
+                      setRecommendations(prev => [...prev, ...newRecs])
+                    }
+                  }}
+                  style={{ color: 'var(--accent-purple)', background: 'none', border: 'none', fontSize: '0.85em', cursor: 'pointer', fontWeight: 600 }}
+                >
+                  + More →
+                </button>
               </div>
               <div className="scroll-container">
                 <button className="scroll-arrow scroll-arrow-left" onClick={() => scrollRow(upNextScrollRef, 'left')}>‹</button>
