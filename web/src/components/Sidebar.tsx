@@ -41,7 +41,7 @@ export default function Sidebar({ userName, dailyGoalCompleted = 0, dailyGoalTar
             >
               <span style={{ fontSize: '1.2em', opacity: isActive ? 1 : 0.7 }}>{item.icon}</span>
               <span>{item.label}</span>
-              {item.badge && <span className="nav-badge">{item.badge}</span>}
+
             </Link>
           )
         })}
